@@ -112,7 +112,8 @@ EOF
 
 theline="^$(cat local.m3u8 | grep  ^"${start[t]}END"$ )"
 if [[  $theline != "^"  ]];then
-echo "local.m3u8" | xargs sed -i "" s/"$theline"/"${aline}"/ 
+echo "local.m3u8" | xargs sed -i "" s/"$theline"/"${aline}"/ ||  echo "local.m3u8" | xargs sed -i"" s/"$theline"/"${aline}"/ #兼容LINUX
+
 printf "\r已整理%d个.ts文件\033[K" "$t"
 fi
 done
@@ -188,5 +189,8 @@ done
 [[  "$dvn" -eq 8  ]] && read -p "dv-bl-compatible-id:(1/2/4)" dbid 
 [[  "$dvn" -ne 8  ]] && "$Path"/mp4muxer_mac -o "$tspath"/DV-"$name".mp4 -i "$tspath"/out_2.*   -i "$tspath"/out_1.* --dv-profile $dvn  --mpeg4-comp-brand mp42,iso6,isom,msdh,dby1 --overwrite
 [[  "$dvn" -eq 8  ]] && "$Path"/mp4muxer_mac -o "$tspath"/DV-"$name".mp4 -i "$tspath"/out_2.*   -i "$tspath"/out_1.* --dv-profile $dvn --dv-bl-compatible-id $dbid  --mpeg4-comp-brand mp42,iso6,isom,msdh,dby1 --overwrite
+
+fi
+dbid  --mpeg4-comp-brand mp42,iso6,isom,msdh,dby1 --overwrite
 
 fi
