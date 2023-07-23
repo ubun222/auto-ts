@@ -18,7 +18,7 @@ Path1="$(pwd)"
 replace()
 {
     aa="$1"
-    ab="$(echo "$aa" | tr "/" "¿" | sed 's/¿/\\\//g' )"
+    ab="$(echo "$aa" | tr "/" " " | sed 's/ /\\\//g' )"
     aline=
     aline="$ab"
 }
@@ -66,7 +66,7 @@ else
 echo 生成local.m3u8...
 n=-1
 #[[  "$DV" -eq 1  ]] &&  n=0
-while read line ;do
+while read -r -e line ;do
 if [[  "$line" =~ ^"#"  ]] ;then
 #if [[  "$DV" -eq 1  ]];then
 #[[  "$line" =~ "#EXT-X-MAP:URI"  ]] && line="#EXT-X-MAP:URI=\"$ts0\""
@@ -191,6 +191,5 @@ done
 [[  "$dvn" -eq 8  ]] && "$Path"/mp4muxer_mac -o "$tspath"/DV-"$name".mp4 -i "$tspath"/out_2.*   -i "$tspath"/out_1.* --dv-profile $dvn --dv-bl-compatible-id $dbid  --mpeg4-comp-brand mp42,iso6,isom,msdh,dby1 --overwrite
 
 fi
-dbid  --mpeg4-comp-brand mp42,iso6,isom,msdh,dby1 --overwrite
 
 fi
