@@ -1,5 +1,8 @@
-while getopts ":Dcm" opt; do
+while getopts ":DcmCw" opt; do
     case $opt in
+         w)
+        printf "%s\n" "下载在线.m3u" && m3u=1
+        ;;
         m)
         printf "%s\n" "本地.m3u8" && m3u8=1
         ;;
@@ -9,10 +12,13 @@ while getopts ":Dcm" opt; do
         c)
         printf "%s\n" "合并模式" && concat=1
         ;;
+        C)
+        printf "%s\n" "cat合并模式" && cat=1
+        ;;
 esac
 done
 Path="$(dirname $0)"
-[[  $m3u8 != 1  ]]  && [[  $concat != 1  ]] && printf "请添加-m(使用.m3u8)或-c(直接合并)\n" && exit
+[[  $m3u8 != 1  ]]  && [[  $concat != 1  ]] && [[  $cat != 1  ]] && [[  $m3u != 1  ]] && printf "请添加-m(使用.m3u8)或-c(直接合并)或-C(cat命令合并)或-w(wget下载m3u合并)\n" && exit
 [[  $DV == 1  ]]  && cd "$Path"
 Path1="$(pwd)"
 replace()
@@ -24,29 +30,29 @@ replace()
 }
 
 m3u(){
-    if [[  "$1" == ""  ]] ;then
-        printf "参数为空"
-    else
-        n=0
+read -p 请输入在线m3u文件路径 wpath
+#cd "$wpath"
+    mkdir tss
+    cd tss
+        n=1
         while read line ;do
             if [[  "$line" =~ ^"https://"  ]] || [[  "$line" =~ ^"http://"  ]]  ;then
                 printf ""
-                wget -t=3 --connect-timeout=15 -o wget.txt -N "$line" -O "0$n".ts 
+                wget -t=3 --connect-timeout=15 -o wget.txt -N "$line" -O "$n".ts 
                 n=$((n+1))
                 sleep 1.75
                 printf 已下载"$n"个ts文件\\r
             fi
 done<<EOF
-$(cat $1)
+$(cat $wpath)
 EOF
 
-cp "$1" ./.m3u8
+cp "$wpath" ./.m3u8
 m3u8
 
     #    read -p 生成的视频文件名: name
     #    echo 生成"$tspath"/"$name".mp4
     #    ffmpeg -i "${1}" -c copy "$name".mp4
-    fi
 }
 
 
@@ -58,6 +64,8 @@ echo "使用m3u8文件$pm3u8"
 else
 echo 未找到m3u8文件 && exit
 fi
+
+
 
 if [[ -e  local.m3u8  ]];then
 read -p 确定使用本地已存在的m3u8
@@ -71,6 +79,9 @@ if [[  "$line" =~ ^"#"  ]] ;then
 #if [[  "$DV" -eq 1  ]];then
 #[[  "$line" =~ "#EXT-X-MAP:URI"  ]] && line="#EXT-X-MAP:URI=\"$ts0\""
 #fi
+#[[  "$line" =~ "#EXT-X-MAP:URI"  ]] && the0=$()
+[[  "$line" =~ "#EXT-X-MAP:URI"  ]] && line="#EXT-X-MAP:URI=\"^TS0\"" && i1=1
+
 echo "$line" >>local.m3u8
 else
 line="$(echo "$line" | tr -d [a-z])" 
@@ -109,6 +120,14 @@ done<<EOF
 $allts
 EOF
 
+if [[  "$i1" -eq  1  ]];then
+i1=0 && theline=#EXT-X-MAP:URI=\"^TS0\" && echo "local.m3u8" | xargs sed -i "" s/"$theline"/"#EXT-X-MAP:URI=\"${aline}\""/ ||  echo "local.m3u8" | xargs sed -i"" s/"$theline"/"${aline}"/ #兼容LINUX
+theline="^$(cat local.m3u8 | grep  ^"${start[t]}END"$ )" 
+the0=${line}
+i2=1 && continue 
+fi
+
+[[  $i2 -eq 1  ]] && t=$((t-1))
 
 theline="^$(cat local.m3u8 | grep  ^"${start[t]}END"$ )"
 if [[  $theline != "^"  ]];then
@@ -126,7 +145,8 @@ read -p 生成的视频文件名: name
 tspath="$(pwd)"
 echo 生成"$tspath"/"$name".mp4
 
-ffmpeg -i "local.m3u8" -c copy "$name".mp4
+ffmpeg -i  "local.m3u8" -acodec copy -vcodec copy "$name".mp4
+#ffmpeg -i  "$the0" "$name".mp4  -c copy "$name".mp4
 
 }
 
@@ -135,6 +155,48 @@ read -p ts文件夹路径: tspath
 cd "$tspath"
 allts="$(find . | grep .ts$)"
 tsn=$(echo "$allts" | wc -l )
+
+
+if [[  "$cat" -eq 1  ]] ;then
+#allts="$(find . | grep .ts$)"
+read -p 生成的视频文件名: name
+m=0
+while true ;do
+if [[  "${line}" =~ "/0.ts"  ]];then
+
+cat "$line" > "$name".mp4
+
+m=$((m+1))
+continue
+fi
+
+theline=$(echo "$allts" | grep "/$m\.ts"$ )
+
+
+
+if [[  "$theline" == ""  ]];then
+echo 不完整的.ts
+#break
+m=$((m+1))
+continue
+else
+
+cat "$theline" >> "$name".mp4
+m=$((m+1))
+fi
+
+if [[  $m -ge $tsn  ]];then
+echo 合成完毕
+break
+fi
+
+done
+
+exit
+
+fi
+
+
 if [[  "$concat" -eq 1  ]] ;then
 tspath="$(pwd)"
 #if [[ -e  local.txt  ]];then
@@ -169,11 +231,10 @@ ffmpeg -i "${allts1}" -c copy "$name".mp4
 elif [[  "$m3u8" -eq 1  ]];then
 printf ""
 m3u8
-else
+elif [[  "$m3u" -eq 1  ]];then
 printf ""
 m3u "$1"
 fi
-
 
 
 if [[  "$DV" -eq 1  ]];then
@@ -191,5 +252,3 @@ done
 [[  "$dvn" -eq 8  ]] && "$Path"/mp4muxer_mac -o "$tspath"/DV-"$name".mp4 -i "$tspath"/out_2.*   -i "$tspath"/out_1.* --dv-profile $dvn --dv-bl-compatible-id $dbid  --mpeg4-comp-brand mp42,iso6,isom,msdh,dby1 --overwrite
 
 fi
-
-
